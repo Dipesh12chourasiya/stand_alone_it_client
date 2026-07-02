@@ -9,6 +9,11 @@ import { CreateInterviewPage } from '@/features/interviews/pages/CreateInterview
 import { EditInterviewPage } from '@/features/interviews/pages/EditInterviewPage';
 import { InterviewDetailsPage } from '@/features/interviews/pages/InterviewDetailsPage';
 
+// Candidate portal pages (public)
+import { CandidateJoinPage } from '@/features/candidate/pages/CandidateJoinPage';
+import { DeviceVerificationPage } from '@/features/candidate/pages/DeviceVerificationPage';
+import { CandidateWaitingPage } from '@/features/candidate/pages/CandidateWaitingPage';
+
 export function AppRouter() {
   return (
     <Routes>
@@ -17,6 +22,17 @@ export function AppRouter() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
       </Route>
+
+      {/* Candidate portal (public — accessed via invitation link) */}
+      <Route path="/candidate/join/:token" element={<CandidateJoinPage />} />
+      <Route
+        path="/candidate/verify/:token"
+        element={<DeviceVerificationPage />}
+      />
+      <Route
+        path="/candidate/waiting/:token"
+        element={<CandidateWaitingPage />}
+      />
 
       {/* Protected routes */}
       <Route element={<ProtectedRoute />}>

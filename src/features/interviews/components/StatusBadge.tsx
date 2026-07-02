@@ -1,18 +1,23 @@
-import type { InterviewStatus } from '../types/interview.types';
 
 // ─── Style map ───────────────────────────────────────────────
 
-const statusStyles: Record<InterviewStatus, string> = {
+const statusStyles: Record<string, string> = {
+  Pending:
+    'bg-neutral-50 text-neutral-500 ring-1 ring-inset ring-neutral-200',
   Scheduled:
     'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200',
+  InProgress:
+    'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200',
   Completed:
     'bg-green-50 text-green-700 ring-1 ring-inset ring-green-200',
   Cancelled:
-    'bg-neutral-50 text-neutral-500 ring-1 ring-inset ring-neutral-200',
+    'bg-red-50 text-red-600 ring-1 ring-inset ring-red-200',
 };
 
-const statusLabels: Record<InterviewStatus, string> = {
+const statusLabels: Record<string, string> = {
+  Pending: 'Pending',
   Scheduled: 'Scheduled',
+  InProgress: 'In Progress',
   Completed: 'Completed',
   Cancelled: 'Cancelled',
 };
@@ -20,7 +25,7 @@ const statusLabels: Record<InterviewStatus, string> = {
 // ─── Component ───────────────────────────────────────────────
 
 interface StatusBadgeProps {
-  status: InterviewStatus;
+  status: string;
 }
 
 export function StatusBadge({ status }: StatusBadgeProps) {

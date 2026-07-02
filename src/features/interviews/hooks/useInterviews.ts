@@ -125,3 +125,19 @@ export function useDeleteInterview() {
     },
   });
 }
+
+// ─── Generate Invite ─────────────────────────────────────────
+
+export function useGenerateInvite() {
+  return useMutation({
+    mutationFn: (id: string) => interviewApi.generateInvite(id),
+
+    onSuccess: () => {
+      toast.success('Invitation link generated.');
+    },
+
+    onError: (error: ApiError) => {
+      toast.error(error?.message || 'Failed to generate invitation.');
+    },
+  });
+}

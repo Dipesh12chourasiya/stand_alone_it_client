@@ -22,4 +22,9 @@ export const interviewApi = {
 
   delete: (id: string) =>
     interviewClient.delete<ApiResponse<null>>(`/${id}`),
+
+  generateInvite: (id: string) =>
+    interviewClient.post<
+      ApiResponse<{ inviteToken: string; inviteTokenExpiresAt: string }>
+    >(`/${id}/generate-invite`),
 };

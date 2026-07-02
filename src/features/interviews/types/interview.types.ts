@@ -8,7 +8,9 @@ export const MEETING_PLATFORMS = [
 ] as const;
 
 export const INTERVIEW_STATUSES = [
+  'Pending',
   'Scheduled',
+  'InProgress',
   'Completed',
   'Cancelled',
 ] as const;
@@ -35,7 +37,8 @@ export interface Interview {
   status: InterviewStatus;
   notes?: string;
   createdBy: string;
-  inviteToken: string;
+  inviteToken?: string;
+  inviteTokenExpiresAt?: string;
   createdAt: string;
   updatedAt: string;
 }

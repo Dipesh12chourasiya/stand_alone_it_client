@@ -1,8 +1,9 @@
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { useInterview, useDeleteInterview } from '../hooks/useInterviews';
+import { useInterview, useDeleteInterview, useGenerateInvite } from '../hooks/useInterviews';
 import { StatusBadge } from '../components/StatusBadge';
 import { DetailSkeleton } from '../components/LoadingSkeleton';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { CopyButton } from '@/components/ui/CopyButton';
 import { useState, useCallback } from 'react';
 
 export function InterviewDetailsPage() {
@@ -10,7 +11,11 @@ export function InterviewDetailsPage() {
   const navigate = useNavigate();
   const { data: interview, isLoading, isError, error } = useInterview(id);
   const deleteMutation = useDeleteInterview();
+  const generateInvite = useGenerateInvite();
   const [showDelete, setShowDelete] = useState(false);
+  const [inviteToken, setInviteToken] = useState<string | null>(
+    interview?.inviteToken ?? null,
+  );
 
   const handleDelete = useCallback(() => {
     if (!id) return;
@@ -19,6 +24,19 @@ export function InterviewDetailsPage() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, deleteMutation, navigate]);
+
+  const handleGenerateInvite = useCallback(() => {
+    if (!id) return;
+    generateInvite.mutate(id, {
+      onSuccess: (res) => {
+        setInviteToken(res.data.inviteToken);
+      },
+    });
+  }, [id, generateInvite]);
+
+  const inviteLink = inviteToken
+    ? `${window.location.origin}/candidate/join/${inviteToken}`
+    : null;
 
   if (isLoading) {
     return <DetailSkeleton />;
@@ -144,6 +162,45 @@ export function InterviewDetailsPage() {
               </p>
             </Section>
           )}
+
+          {/* Invitation */}
+          <Section title="Candidate Invitation">
+            {inviteLink ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3.5 py-2.5">
+                  <span className="flex-1 truncate text-sm text-neutral-600">
+                    {inviteLink}
+                  </span>
+                  <CopyButton text={inviteLink} />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleGenerateInvite}
+                  disabled={generateInvite.isPending}
+                  className="text-xs font-medium text-neutral-500 hover:text-neutral-700 transition-colors cursor-pointer disabled:text-neutral-300"
+                >
+                  Regenerate link
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleGenerateInvite}
+                  disabled={generateInvite.isPending}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-neutral-900 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:bg-neutral-300 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {generateInvite.isPending && (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  )}
+                  Generate Invitation Link
+                </button>
+                <span className="text-xs text-neutral-400">
+                  Create a unique link to send to the candidate
+                </span>
+              </div>
+            )}
+          </Section>
         </div>
       </div>
 
