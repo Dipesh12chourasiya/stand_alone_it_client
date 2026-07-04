@@ -21,18 +21,18 @@ import { startCameraStream, stopStream } from '../utils/media';
 export function PhoneSessionPage() {
   const { sessionToken } = useParams<{ sessionToken: string }>();
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
-  const [micStream, setMicStream] = useState<MediaStream | null>(null);
+  const [micStream, _setMicStream] = useState<MediaStream | null>(null);
 
   const {
     phoneStatus,
     phoneDeviceInfo,
     webrtcState,
-    remoteStream,
+    remoteStream: _remoteStream,
     setPhoneStatus,
-    setWebRTCState,
+    setWebRTCState: _setWebRTCState,
   } = useSessionStore();
 
-  const { permissions } = useMediaPermissions();
+  const { permissions: _permissions } = useMediaPermissions();
 
   // Socket connection
   const { socket } = useSocket({

@@ -21,7 +21,7 @@ interface UseWebRTCOptions {
 export function useWebRTC({
   socket,
   localStream,
-  role,
+  role: _role,
   remoteRole,
   onRemoteStream,
 }: UseWebRTCOptions) {

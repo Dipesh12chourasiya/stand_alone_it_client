@@ -18,9 +18,9 @@ timelineClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Unwrap response data, handle 401
+// Handle 401
 timelineClient.interceptors.response.use(
-  (response) => response.data,
+  undefined,
   (error) => {
     if (error.response?.status === 401) {
       useAuthStore.getState().logout();

@@ -15,7 +15,7 @@ import {
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
 
-  const { data: stats, isLoading: statsLoading } = useDashboardStats();
+  const { data: stats } = useDashboardStats();
   const { data: weekly, isLoading: weeklyLoading, isError: weeklyError } =
     useWeeklyAnalytics();
   const { data: monthly, isLoading: monthlyLoading, isError: monthlyError } =

@@ -1,5 +1,5 @@
 import { dashboardClient } from './dashboard.client';
-import type { DashboardStats, WeeklyData, MonthlyData, StatusCounts } from '../types/dashboard.types';
+import type { DashboardStats, WeeklyData, MonthlyData, StatusCounts, RecentInterview } from '../types/dashboard.types';
 
 export interface ApiEnvelope<T> {
   success: boolean;
@@ -8,13 +8,30 @@ export interface ApiEnvelope<T> {
 }
 
 export const dashboardApi = {
-  stats: () => dashboardClient.get<ApiEnvelope<DashboardStats>>('/stats'),
-  weekly: () => dashboardClient.get<ApiEnvelope<WeeklyData>>('/weekly'),
-  monthly: () => dashboardClient.get<ApiEnvelope<MonthlyData>>('/monthly'),
-  recent: (limit = 5) =>
-    dashboardClient.get<ApiEnvelope<{ interviews: unknown[] }>>('/recent', {
+  stats: async (): Promise<ApiEnvelope<DashboardStats>> => {
+    const { data } = await dashboardClient.get<ApiEnvelope<DashboardStats>>('/stats');
+    return data;
+  },
+
+  weekly: async (): Promise<ApiEnvelope<WeeklyData>> => {
+    const { data } = await dashboardClient.get<ApiEnvelope<WeeklyData>>('/weekly');
+    return data;
+  },
+
+  monthly: async (): Promise<ApiEnvelope<MonthlyData>> => {
+    const { data } = await dashboardClient.get<ApiEnvelope<MonthlyData>>('/monthly');
+    return data;
+  },
+
+  recent: async (limit = 5): Promise<ApiEnvelope<{ interviews: RecentInterview[] }>> => {
+    const { data } = await dashboardClient.get<ApiEnvelope<{ interviews: RecentInterview[] }>>('/recent', {
       params: { limit },
-    }),
-  statusCounts: () =>
-    dashboardClient.get<ApiEnvelope<StatusCounts>>('/status-counts'),
+    });
+    return data;
+  },
+
+  statusCounts: async (): Promise<ApiEnvelope<StatusCounts>> => {
+    const { data } = await dashboardClient.get<ApiEnvelope<StatusCounts>>('/status-counts');
+    return data;
+  },
 };

@@ -127,7 +127,7 @@ export function DeviceVerificationPage() {
 
     submitMutation.mutate(data, {
       onSuccess: (res) => {
-        setResult(res as DeviceVerificationResult);
+        setResult(res.data);
         setSubmitted(true);
       },
     });

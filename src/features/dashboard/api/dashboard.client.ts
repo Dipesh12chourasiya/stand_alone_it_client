@@ -18,7 +18,7 @@ dashboardClient.interceptors.request.use((config) => {
 });
 
 dashboardClient.interceptors.response.use(
-  (response) => response.data,
+  undefined,
   (error) => {
     if (error.response?.status === 401) {
       useAuthStore.getState().logout();

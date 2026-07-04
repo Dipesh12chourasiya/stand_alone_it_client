@@ -8,15 +8,23 @@ import type {
 } from '../types/auth.types';
 
 export const authApi = {
-  login: (data: LoginRequest) =>
-    authClient.post<ApiResponse<AuthResponse>>('/login', data),
+  login: async (data: LoginRequest): Promise<ApiResponse<AuthResponse>> => {
+    const { data: responseData } = await authClient.post<ApiResponse<AuthResponse>>('/login', data);
+    return responseData;
+  },
 
-  register: (data: RegisterRequest) =>
-    authClient.post<ApiResponse<AuthResponse>>('/register', data),
+  register: async (data: RegisterRequest): Promise<ApiResponse<AuthResponse>> => {
+    const { data: responseData } = await authClient.post<ApiResponse<AuthResponse>>('/register', data);
+    return responseData;
+  },
 
-  getMe: () =>
-    authClient.get<ApiResponse<{ recruiter: User }>>('/me'),
+  getMe: async (): Promise<ApiResponse<{ recruiter: User }>> => {
+    const { data } = await authClient.get<ApiResponse<{ recruiter: User }>>('/me');
+    return data;
+  },
 
-  logout: () =>
-    authClient.post<ApiResponse<null>>('/logout'),
+  logout: async (): Promise<ApiResponse<null>> => {
+    const { data } = await authClient.post<ApiResponse<null>>('/logout');
+    return data;
+  },
 };

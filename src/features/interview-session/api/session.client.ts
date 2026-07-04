@@ -22,7 +22,7 @@ sessionClient.interceptors.request.use((config) => {
 
 // Handle 401 for authenticated routes
 sessionClient.interceptors.response.use(
-  (response) => response.data,
+  undefined,
   (error) => {
     if (error.response?.status === 401) {
       useAuthStore.getState().logout();

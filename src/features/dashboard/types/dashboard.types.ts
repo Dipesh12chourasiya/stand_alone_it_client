@@ -38,3 +38,13 @@ export interface MonthlyData {
   November: number;
   December: number;
 }
+
+export interface RecentInterview {
+  _id: string;
+  title: string;
+  candidateName: string;
+  date: string;
+  time: string;
+  status: string;
+  createdAt: string;
+}

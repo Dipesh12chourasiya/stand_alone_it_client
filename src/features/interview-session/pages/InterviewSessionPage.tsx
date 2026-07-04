@@ -14,7 +14,7 @@ import { VideoPlayer } from '../components/VideoPlayer';
 import { PhoneStatus } from '../components/PhoneStatus';
 import { WaitingCard } from '../components/WaitingCard';
 import { InterviewSessionLayout } from '../components/InterviewSessionLayout';
-import type { PhoneSession } from '../types/session.types';
+import type { PhoneSession, ApiEnvelope } from '../types/session.types';
 
 /**
  * Recruiter's interview session page.
@@ -44,7 +44,7 @@ export function InterviewSessionPage() {
   // Create the phone session
   const { mutate: createSession, isPending: creatingSession } = useMutation({
     mutationFn: () => sessionApi.createSession(interviewId!),
-    onSuccess: (response) => {
+    onSuccess: (response: ApiEnvelope<{ session: PhoneSession }>) => {
       const phoneSession = response.data.session;
       setSession(phoneSession);
       setSessionUrl(
@@ -58,21 +58,22 @@ export function InterviewSessionPage() {
   });
 
   // Fetch existing session on mount
-  const { isLoading: loadingSession } = useQuery({
+  const { isLoading: loadingSession, data: activeSession } = useQuery({
     queryKey: ['phone-session', interviewId],
     queryFn: () => sessionApi.getActiveSession(interviewId!),
     enabled: !!interviewId,
     retry: false,
-    select: (response) => response.data.session,
-    onSuccess: (existingSession) => {
-      if (existingSession) {
-        setSession(existingSession);
-        setSessionUrl(
-          `${window.location.origin}/phone/join/${existingSession.sessionToken}`,
-        );
-      }
-    },
-  } as never);
+    select: (response: ApiEnvelope<{ session: PhoneSession | null }>) => response.data.session,
+  });
+
+  // Restore existing session data when loaded
+  useEffect(() => {
+    if (!activeSession) return;
+    setSession(activeSession);
+    setSessionUrl(
+      `${window.location.origin}/phone/join/${activeSession.sessionToken}`,
+    );
+  }, [activeSession]);
 
   // Join interview room
   useInterviewRoom({

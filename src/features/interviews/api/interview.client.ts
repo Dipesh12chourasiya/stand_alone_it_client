@@ -26,7 +26,7 @@ interviewClient.interceptors.request.use((config) => {
 // ─── Response interceptor — unwrap data, handle 401 ──────────
 
 interviewClient.interceptors.response.use(
-  (response) => response.data,
+  undefined,
   (error) => {
     if (error.response?.status === 401) {
       useAuthStore.getState().logout();

@@ -1,5 +1,5 @@
 import { MEETING_PLATFORMS, INTERVIEW_STATUSES } from '../types/interview.types';
-import type { MeetingPlatform } from '../types/interview.types';
+import type { InterviewStatus, MeetingPlatform } from '../types/interview.types';
 
 // ─── Props ───────────────────────────────────────────────────
 

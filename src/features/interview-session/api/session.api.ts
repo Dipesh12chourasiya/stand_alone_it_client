@@ -3,30 +3,42 @@ import type { ApiEnvelope, PhoneSession, SessionWithInterview } from '../types/s
 
 export const sessionApi = {
   // Recruiter: create a phone session for an interview
-  createSession: (interviewId: string) =>
-    sessionClient.post<ApiEnvelope<{ session: PhoneSession }>>(`/session/${interviewId}`),
+  createSession: async (interviewId: string): Promise<ApiEnvelope<{ session: PhoneSession }>> => {
+    const { data } = await sessionClient.post<ApiEnvelope<{ session: PhoneSession }>>(`/session/${interviewId}`);
+    return data;
+  },
 
   // Recruiter: get active session for an interview
-  getActiveSession: (interviewId: string) =>
-    sessionClient.get<ApiEnvelope<{ session: PhoneSession | null }>>(`/active/${interviewId}`),
+  getActiveSession: async (interviewId: string): Promise<ApiEnvelope<{ session: PhoneSession | null }>> => {
+    const { data } = await sessionClient.get<ApiEnvelope<{ session: PhoneSession | null }>>(`/active/${interviewId}`);
+    return data;
+  },
 
   // Phone: validate session token
-  validateSession: (sessionToken: string) =>
-    sessionClient.get<ApiEnvelope<{ session: PhoneSession }>>(`/validate/${sessionToken}`),
+  validateSession: async (sessionToken: string): Promise<ApiEnvelope<{ session: PhoneSession }>> => {
+    const { data } = await sessionClient.get<ApiEnvelope<{ session: PhoneSession }>>(`/validate/${sessionToken}`);
+    return data;
+  },
 
   // Phone: get full session with interview details
-  getSession: (sessionToken: string) =>
-    sessionClient.get<ApiEnvelope<{ session: SessionWithInterview }>>(`/session/${sessionToken}`),
+  getSession: async (sessionToken: string): Promise<ApiEnvelope<{ session: SessionWithInterview }>> => {
+    const { data } = await sessionClient.get<ApiEnvelope<{ session: SessionWithInterview }>>(`/session/${sessionToken}`);
+    return data;
+  },
 
   // Phone: mark as connected
-  connectPhone: (sessionToken: string, deviceInfo?: Record<string, unknown>) =>
-    sessionClient.post<ApiEnvelope<{ session: PhoneSession }>>(`/connect/${sessionToken}`, {
+  connectPhone: async (sessionToken: string, deviceInfo?: Record<string, unknown>): Promise<ApiEnvelope<{ session: PhoneSession }>> => {
+    const { data } = await sessionClient.post<ApiEnvelope<{ session: PhoneSession }>>(`/connect/${sessionToken}`, {
       deviceInfo,
-    }),
+    });
+    return data;
+  },
 
   // Phone: update device info
-  updateDeviceInfo: (sessionToken: string, deviceInfo: Record<string, unknown>) =>
-    sessionClient.patch<ApiEnvelope<{ session: PhoneSession }>>(`/device-info/${sessionToken}`, {
+  updateDeviceInfo: async (sessionToken: string, deviceInfo: Record<string, unknown>): Promise<ApiEnvelope<{ session: PhoneSession }>> => {
+    const { data } = await sessionClient.patch<ApiEnvelope<{ session: PhoneSession }>>(`/device-info/${sessionToken}`, {
       deviceInfo,
-    }),
+    });
+    return data;
+  },
 };

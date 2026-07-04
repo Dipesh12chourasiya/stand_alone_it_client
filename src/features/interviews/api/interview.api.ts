@@ -8,23 +8,35 @@ import type {
 import type { CreateInterviewInput, UpdateInterviewInput } from '../types/interview.types';
 
 export const interviewApi = {
-  list: (params: InterviewListParams) =>
-    interviewClient.get<ApiResponse<InterviewListData>>('/', { params }),
+  list: async (params: InterviewListParams): Promise<ApiResponse<InterviewListData>> => {
+    const { data } = await interviewClient.get<ApiResponse<InterviewListData>>('/', { params });
+    return data;
+  },
 
-  getById: (id: string) =>
-    interviewClient.get<ApiResponse<InterviewDetailData>>(`/${id}`),
+  getById: async (id: string): Promise<ApiResponse<InterviewDetailData>> => {
+    const { data } = await interviewClient.get<ApiResponse<InterviewDetailData>>(`/${id}`);
+    return data;
+  },
 
-  create: (data: CreateInterviewInput) =>
-    interviewClient.post<ApiResponse<InterviewDetailData>>('/', data),
+  create: async (input: CreateInterviewInput): Promise<ApiResponse<InterviewDetailData>> => {
+    const { data } = await interviewClient.post<ApiResponse<InterviewDetailData>>('/', input);
+    return data;
+  },
 
-  update: (id: string, data: UpdateInterviewInput) =>
-    interviewClient.patch<ApiResponse<InterviewDetailData>>(`/${id}`, data),
+  update: async (id: string, input: UpdateInterviewInput): Promise<ApiResponse<InterviewDetailData>> => {
+    const { data } = await interviewClient.patch<ApiResponse<InterviewDetailData>>(`/${id}`, input);
+    return data;
+  },
 
-  delete: (id: string) =>
-    interviewClient.delete<ApiResponse<null>>(`/${id}`),
+  delete: async (id: string): Promise<ApiResponse<null>> => {
+    const { data } = await interviewClient.delete<ApiResponse<null>>(`/${id}`);
+    return data;
+  },
 
-  generateInvite: (id: string) =>
-    interviewClient.post<
+  generateInvite: async (id: string): Promise<ApiResponse<{ inviteToken: string; inviteTokenExpiresAt: string }>> => {
+    const { data } = await interviewClient.post<
       ApiResponse<{ inviteToken: string; inviteTokenExpiresAt: string }>
-    >(`/${id}/generate-invite`),
+    >(`/${id}/generate-invite`);
+    return data;
+  },
 };

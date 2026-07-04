@@ -1,19 +1,30 @@
 import { timelineClient } from './timeline.client';
 import type {
-  TimelineEvent,
   TimelineListData,
   TimelineDetailData,
   TimelineExportData,
   TimelineListParams,
 } from '../types/timeline.types';
 
+interface TimelineApiEnvelope<T> {
+  success: boolean;
+  message: string;
+  data: T;
+}
+
 export const timelineApi = {
-  list: (sessionId: string, params: TimelineListParams) =>
-    timelineClient.get<TimelineListData>(`/${sessionId}`, { params }),
+  list: async (sessionId: string, params: TimelineListParams): Promise<TimelineApiEnvelope<TimelineListData>> => {
+    const { data } = await timelineClient.get<TimelineApiEnvelope<TimelineListData>>(`/${sessionId}`, { params });
+    return data;
+  },
 
-  create: (data: { sessionId: string; eventType: string; severity: string; message: string; metadata?: Record<string, unknown> }) =>
-    timelineClient.post<TimelineDetailData>('/', data),
+  create: async (input: { sessionId: string; eventType: string; severity: string; message: string; metadata?: Record<string, unknown> }): Promise<TimelineApiEnvelope<TimelineDetailData>> => {
+    const { data } = await timelineClient.post<TimelineApiEnvelope<TimelineDetailData>>('/', input);
+    return data;
+  },
 
-  exportEvents: (sessionId: string) =>
-    timelineClient.get<TimelineExportData>(`/${sessionId}/export`),
+  exportEvents: async (sessionId: string): Promise<TimelineApiEnvelope<TimelineExportData>> => {
+    const { data } = await timelineClient.get<TimelineApiEnvelope<TimelineExportData>>(`/${sessionId}/export`);
+    return data;
+  },
 };

@@ -10,6 +10,6 @@ export const candidateClient = axios.create({
 
 // No auth interceptor — candidate routes are public via token
 candidateClient.interceptors.response.use(
-  (response) => response.data,
+  undefined,
   (error) => Promise.reject(error.response?.data ?? error),
 );

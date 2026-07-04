@@ -1,14 +1,5 @@
 import { Link } from 'react-router-dom';
-
-interface RecentInterview {
-  _id: string;
-  title: string;
-  candidateName: string;
-  date: string;
-  time: string;
-  status: string;
-  createdAt: string;
-}
+import type { RecentInterview } from '../types/dashboard.types';
 
 interface RecentInterviewsTableProps {
   interviews: RecentInterview[] | undefined;

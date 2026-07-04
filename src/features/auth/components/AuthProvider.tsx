@@ -11,7 +11,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const token = useAuthStore((s) => s.token);
   const setUser = useAuthStore((s) => s.setUser);
   const logout = useAuthStore((s) => s.logout);
-  const isInitialized = useAuthStore((s) => s.isAuthenticated);
 
   const { data, isError, isLoading } = useCurrentUser();
 

@@ -21,7 +21,7 @@ export interface DeviceInfo {
   internetType?: string;
 }
 
-export interface SessionWithInterview extends PhoneSession {
+export interface SessionWithInterview extends Omit<PhoneSession, 'interviewId'> {
   interviewId: {
     _id: string;
     title: string;

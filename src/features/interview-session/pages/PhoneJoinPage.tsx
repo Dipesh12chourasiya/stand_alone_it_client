@@ -6,6 +6,7 @@ import { useMediaPermissions } from '../hooks/useMediaPermissions';
 import { DevicePermissionCard } from '../components/DevicePermissionCard';
 import { WaitingCard } from '../components/WaitingCard';
 import { getBrowserInfo } from '../utils/media';
+import type { PhoneSession, ApiEnvelope } from '../types/session.types';
 
 /**
  * Phone join page.
@@ -26,8 +27,8 @@ export function PhoneJoinPage() {
     queryFn: () => sessionApi.validateSession(sessionToken!),
     enabled: !!sessionToken,
     retry: false,
-    select: (response) => response.data.session,
-  } as never);
+    select: (response: ApiEnvelope<{ session: PhoneSession }>) => response.data.session,
+  });
 
   // Connect phone to session
   const { mutate: connect, isPending: connecting } = useMutation({

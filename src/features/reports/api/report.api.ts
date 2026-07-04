@@ -1,5 +1,6 @@
 import { reportClient } from './report.client';
 import type {
+  ApiEnvelope,
   ReportListData,
   ReportDetailData,
   ReportListParams,
@@ -7,17 +8,25 @@ import type {
 } from '../types/report.types';
 
 export const reportApi = {
-  list: (params: ReportListParams) =>
-    reportClient.get<ReportListData>('/', { params }),
+  list: async (params: ReportListParams): Promise<ApiEnvelope<ReportListData>> => {
+    const { data } = await reportClient.get<ApiEnvelope<ReportListData>>('/', { params });
+    return data;
+  },
 
-  getById: (id: string) =>
-    reportClient.get<ReportDetailData>(`/${id}`),
+  getById: async (id: string): Promise<ApiEnvelope<ReportDetailData>> => {
+    const { data } = await reportClient.get<ApiEnvelope<ReportDetailData>>(`/${id}`);
+    return data;
+  },
 
-  create: (data: CreateReportInput) =>
-    reportClient.post<ReportDetailData>('/', data),
+  create: async (input: CreateReportInput): Promise<ApiEnvelope<ReportDetailData>> => {
+    const { data } = await reportClient.post<ApiEnvelope<ReportDetailData>>('/', input);
+    return data;
+  },
 
-  delete: (id: string) =>
-    reportClient.delete<{ success: boolean; message: string; data: null }>(`/${id}`),
+  delete: async (id: string): Promise<ApiEnvelope<null>> => {
+    const { data } = await reportClient.delete<ApiEnvelope<null>>(`/${id}`);
+    return data;
+  },
 
-  getDownloadUrl: (id: string) => `/api/v1/reports/${id}/download`,
+  getDownloadUrl: (id: string): string => `/api/v1/reports/${id}/download`,
 };

@@ -1,5 +1,11 @@
 import { candidateClient } from './candidate.client';
-import type { DeviceVerificationInput } from '../types/candidate.types';
+import type {
+  DeviceVerificationInput,
+  DeviceVerificationResult,
+  ValidateResponse,
+  JoinInterviewData,
+  WaitingRoomData,
+} from '../types/candidate.types';
 
 export interface ApiEnvelope<T> {
   success: boolean;
@@ -8,21 +14,31 @@ export interface ApiEnvelope<T> {
 }
 
 export const candidateApi = {
-  validate: (token: string) =>
-    candidateClient.get<ApiEnvelope<unknown>>(`/validate/${token}`),
+  validate: async (token: string): Promise<ApiEnvelope<ValidateResponse>> => {
+    const { data } = await candidateClient.get<ApiEnvelope<ValidateResponse>>(`/validate/${token}`);
+    return data;
+  },
 
-  join: (token: string) =>
-    candidateClient.get<ApiEnvelope<unknown>>(`/join/${token}`),
+  join: async (token: string): Promise<ApiEnvelope<JoinInterviewData>> => {
+    const { data } = await candidateClient.get<ApiEnvelope<JoinInterviewData>>(`/join/${token}`);
+    return data;
+  },
 
-  waitingRoom: (token: string) =>
-    candidateClient.get<ApiEnvelope<unknown>>(`/waiting-room/${token}`),
+  waitingRoom: async (token: string): Promise<ApiEnvelope<WaitingRoomData>> => {
+    const { data } = await candidateClient.get<ApiEnvelope<WaitingRoomData>>(`/waiting-room/${token}`);
+    return data;
+  },
 
-  submitDeviceVerification: (token: string, data: DeviceVerificationInput) =>
-    candidateClient.post<ApiEnvelope<unknown>>(
+  submitDeviceVerification: async (token: string, input: DeviceVerificationInput): Promise<ApiEnvelope<DeviceVerificationResult>> => {
+    const { data } = await candidateClient.post<ApiEnvelope<DeviceVerificationResult>>(
       `/device-verification/${token}`,
-      data,
-    ),
+      input,
+    );
+    return data;
+  },
 
-  getDeviceVerification: (token: string) =>
-    candidateClient.get<ApiEnvelope<unknown>>(`/device-verification/${token}`),
+  getDeviceVerification: async (token: string): Promise<ApiEnvelope<DeviceVerificationResult>> => {
+    const { data } = await candidateClient.get<ApiEnvelope<DeviceVerificationResult>>(`/device-verification/${token}`);
+    return data;
+  },
 };

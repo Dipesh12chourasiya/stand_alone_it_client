@@ -1,4 +1,4 @@
-import { useForm } from 'react-hook-form';
+import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod/v4';
 import { Input } from '@/components/ui/Input';
@@ -54,7 +54,7 @@ export function InterviewForm({ mode, interview }: InterviewFormProps) {
     setError,
     formState: { errors },
   } = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(formSchema) as Resolver<FormValues>,
     defaultValues: {
       title: interview?.title ?? '',
       candidateName: interview?.candidateName ?? '',
