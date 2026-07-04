@@ -1,0 +1,97 @@
+import { useEffect, useCallback } from 'react';
+import { type Socket } from 'socket.io-client';
+import { useSessionStore } from '../store/session.store';
+import type { PhoneStatusUpdate } from '../types/session.types';
+
+interface UsePhoneConnectionOptions {
+  socket: Socket | null;
+  sessionToken: string | null;
+  role: 'recruiter' | 'phone';
+  onPhoneConnected?: () => void;
+  onPhoneDisconnected?: () => void;
+}
+
+/**
+ * Manage the phone connection lifecycle over Socket.IO.
+ *
+ * Recruiter side: listens for phone status updates.
+ * Phone side: joins the session room and sends device info.
+ */
+export function usePhoneConnection({
+  socket,
+  sessionToken,
+  role,
+  onPhoneConnected,
+  onPhoneDisconnected,
+}: UsePhoneConnectionOptions) {
+  const {
+    setPhoneStatus,
+    setPhoneDeviceInfo,
+  } = useSessionStore();
+
+  // Join/leave session room
+  useEffect(() => {
+    if (!socket || !sessionToken) return;
+
+    if (role === 'phone') {
+      // Phone joins the session
+      socket.emit('phone:join-session', { sessionToken });
+
+      return () => {
+        socket.emit('phone:leave-session');
+      };
+    }
+
+    // Recruiter: listen for phone events
+    const handleConnected = () => {
+      setPhoneStatus('connected');
+      onPhoneConnected?.();
+    };
+
+    const handleDisconnected = () => {
+      setPhoneStatus('disconnected');
+      onPhoneDisconnected?.();
+    };
+
+    const handleStatus = (data: PhoneStatusUpdate) => {
+      setPhoneDeviceInfo(data);
+    };
+
+    socket.on('phone:connected', handleConnected);
+    socket.on('phone:disconnected', handleDisconnected);
+    socket.on('phone:status', handleStatus);
+    socket.on('phone:camera-ready', (data: { status: string }) => {
+      setPhoneDeviceInfo({ cameraStatus: data.status });
+    });
+    socket.on('phone:mic-ready', (data: { status: string }) => {
+      setPhoneDeviceInfo({ micStatus: data.status });
+    });
+    socket.on('phone:battery', (data: { level: number; charging: boolean }) => {
+      setPhoneDeviceInfo({ battery: data });
+    });
+    socket.on('phone:network', (data: { type: string }) => {
+      setPhoneDeviceInfo({ network: data });
+    });
+
+    return () => {
+      socket.off('phone:connected', handleConnected);
+      socket.off('phone:disconnected', handleDisconnected);
+      socket.off('phone:status', handleStatus);
+      socket.off('phone:camera-ready');
+      socket.off('phone:mic-ready');
+      socket.off('phone:battery');
+      socket.off('phone:network');
+    };
+  }, [socket, sessionToken, role, setPhoneStatus, setPhoneDeviceInfo, onPhoneConnected, onPhoneDisconnected]);
+
+  // Phone sends device info updates
+  const sendDeviceInfo = useCallback(
+    (info: PhoneStatusUpdate) => {
+      if (!socket || !sessionToken) return;
+      socket.emit('phone:device-info', info);
+    },
+    [socket, sessionToken],
+  );
+
+  return { sendDeviceInfo };
+}

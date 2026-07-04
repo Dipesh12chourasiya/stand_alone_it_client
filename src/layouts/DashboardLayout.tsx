@@ -7,6 +7,7 @@ import { useAuthStore } from '@/features/auth/store/auth.store';
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/interviews', label: 'Interviews' },
+  { to: '/reports', label: 'Reports' },
 ] as const;
 
 // ─── NavLink style helpers ───────────────────────────────────

@@ -9,10 +9,19 @@ import { CreateInterviewPage } from '@/features/interviews/pages/CreateInterview
 import { EditInterviewPage } from '@/features/interviews/pages/EditInterviewPage';
 import { InterviewDetailsPage } from '@/features/interviews/pages/InterviewDetailsPage';
 
+// Reports pages (protected)
+import { ReportsListPage } from '@/features/reports/pages/ReportsListPage';
+import { ReportDetailsPage } from '@/features/reports/pages/ReportDetailsPage';
+
 // Candidate portal pages (public)
 import { CandidateJoinPage } from '@/features/candidate/pages/CandidateJoinPage';
 import { DeviceVerificationPage } from '@/features/candidate/pages/DeviceVerificationPage';
 import { CandidateWaitingPage } from '@/features/candidate/pages/CandidateWaitingPage';
+
+// Interview session pages
+import { InterviewSessionPage } from '@/features/interview-session/pages/InterviewSessionPage';
+import { PhoneJoinPage } from '@/features/interview-session/pages/PhoneJoinPage';
+import { PhoneSessionPage } from '@/features/interview-session/pages/PhoneSessionPage';
 
 export function AppRouter() {
   return (
@@ -34,6 +43,10 @@ export function AppRouter() {
         element={<CandidateWaitingPage />}
       />
 
+      {/* Phone connection (public — accessed via QR code) */}
+      <Route path="/phone/join/:sessionToken" element={<PhoneJoinPage />} />
+      <Route path="/phone/session/:sessionToken" element={<PhoneSessionPage />} />
+
       {/* Protected routes */}
       <Route element={<ProtectedRoute />}>
         <Route element={<DashboardLayout />}>
@@ -44,7 +57,14 @@ export function AppRouter() {
           <Route path="/interviews/new" element={<CreateInterviewPage />} />
           <Route path="/interviews/:id" element={<InterviewDetailsPage />} />
           <Route path="/interviews/:id/edit" element={<EditInterviewPage />} />
+
+          {/* Reports */}
+          <Route path="/reports" element={<ReportsListPage />} />
+          <Route path="/reports/:id" element={<ReportDetailsPage />} />
         </Route>
+
+        {/* Interview session (full screen, no dashboard layout) */}
+        <Route path="/session/:id" element={<InterviewSessionPage />} />
       </Route>
 
       {/* Catch-all */}
