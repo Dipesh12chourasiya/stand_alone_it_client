@@ -74,12 +74,14 @@ export function InterviewSessionPage() {
     interviewId: interviewId || null,
     role: 'recruiter',
     onParticipantJoined: (data) => {
+      console.log('[Recruiter] Participant joined:', data.role);
       if (data.role === 'phone') {
         setPhoneStatus('connected');
         toast.success('Phone connected!');
       }
     },
     onParticipantLeft: (data) => {
+      console.log('[Recruiter] Participant left:', data.role);
       if (data.role === 'phone') {
         setPhoneStatus('disconnected');
         toast('Phone disconnected.');

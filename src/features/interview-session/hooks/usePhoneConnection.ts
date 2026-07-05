@@ -44,6 +44,7 @@ export function usePhoneConnection({
 
     // Common listeners for BOTH phone and recruiter roles.
     const handleConnected = () => {
+      console.log(`[${role === 'phone' ? 'Phone' : 'Recruiter'}] Received phone:connected`);
       setPhoneStatus('connected');
       onPhoneConnectedRef.current?.();
     };
@@ -73,13 +74,20 @@ export function usePhoneConnection({
       setPhoneDeviceInfo({ network: data });
     });
 
-    // Role-specific join action
-    if (role === 'phone') {
-      socket.emit('phone:join-session', {
-        sessionToken,
-        interviewId: interviewId || undefined,
-      });
-    }
+    // Role-specific join action — rejoin on reconnect too
+    const doJoin = () => {
+      if (role === 'phone') {
+        console.log('[Phone] Emitting phone:join-session');
+        socket.emit('phone:join-session', {
+          sessionToken,
+          interviewId: interviewId || undefined,
+        });
+      }
+    };
+
+    console.log(`[${role === 'phone' ? 'Phone' : 'Recruiter'}] Setting up phone connection listeners`);
+    doJoin();
+    socket.on('connect', doJoin);
 
     return () => {
       socket.off('phone:connected', handleConnected);
@@ -89,6 +97,7 @@ export function usePhoneConnection({
       socket.off('phone:mic-ready');
       socket.off('phone:battery');
       socket.off('phone:network');
+      socket.off('connect', doJoin);
 
       if (role === 'phone') {
         socket.emit('phone:leave-session');

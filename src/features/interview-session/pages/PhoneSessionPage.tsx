@@ -54,7 +54,7 @@ export function PhoneSessionPage() {
   const interviewId = stateInterviewId ?? sessionData?.interviewId?._id ?? null;
 
   // Socket connection
-  const { socket } = useSocket({
+  const { socket, connected: socketConnected } = useSocket({
     enabled: true,
     onConnect: () => {
       console.log('[Phone] Socket connected');
@@ -140,8 +140,9 @@ export function PhoneSessionPage() {
   });
 
   // Initiate WebRTC once camera and socket are ready
+  // socketConnected is the key dep — it flips true on reconnect, re-triggering createOffer
   useEffect(() => {
-    if (socket?.connected && cameraStream && phoneStatus === 'connected') {
+    if (socketConnected && socket?.connected && cameraStream && phoneStatus === 'connected') {
       // Brief delay to ensure socket room is fully joined
       const timer = setTimeout(() => {
         createOffer();
@@ -149,7 +150,7 @@ export function PhoneSessionPage() {
 
       return () => clearTimeout(timer);
     }
-  }, [socket, cameraStream, phoneStatus, createOffer]);
+  }, [socketConnected, socket, cameraStream, phoneStatus, createOffer]);
 
   // Send battery info periodically
   useEffect(() => {

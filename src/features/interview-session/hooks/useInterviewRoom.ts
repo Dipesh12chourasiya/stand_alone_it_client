@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { type Socket } from 'socket.io-client';
 
 interface UseInterviewRoomOptions {
@@ -16,6 +16,10 @@ interface UseInterviewRoomOptions {
  *
  * Handles joining/leaving rooms, participant tracking, and
  * interview lifecycle events.
+ *
+ * CRITICAL: Socket.IO v4 does NOT preserve room membership across
+ * reconnections. We listen for the socket's native 'connect' event
+ * and rejoin the room every time the socket (re)connects.
  */
 export function useInterviewRoom({
   socket,
@@ -26,13 +30,32 @@ export function useInterviewRoom({
   onInterviewStarted,
   onInterviewEnded,
 }: UseInterviewRoomOptions) {
-  // Join the room when socket + interviewId are ready
+  // Stable refs so the connect handler always uses latest values
+  const interviewIdRef = useRef(interviewId);
+  interviewIdRef.current = interviewId;
+
+  const roleRef = useRef(role);
+  roleRef.current = role;
+
+  // Join the room when socket + interviewId are ready, and REJOIN on reconnect
   useEffect(() => {
     if (!socket || !interviewId) return;
 
-    socket.emit('interview:join', { interviewId, role });
+    const doJoin = () => {
+      socket.emit('interview:join', {
+        interviewId: interviewIdRef.current,
+        role: roleRef.current,
+      });
+    };
+
+    // Initial join
+    doJoin();
+
+    // Rejoin on reconnect — Socket.IO v4 does NOT preserve rooms across reconnect
+    socket.on('connect', doJoin);
 
     return () => {
+      socket.off('connect', doJoin);
       socket.emit('interview:leave');
     };
   }, [socket, interviewId, role]);
