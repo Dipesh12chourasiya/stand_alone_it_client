@@ -30,8 +30,9 @@ export function ConnectionStatus({
   webrtcState,
   className = '',
 }: ConnectionStatusProps) {
-  const phone = STATUS_LABELS[phoneStatus];
-  const webrtc = WEBRTC_LABELS[webrtcState];
+  // Fallback to safe defaults if the status value isn't in the lookup dictionary
+  const phone = STATUS_LABELS[phoneStatus] ?? { label: 'Unknown', color: 'text-gray-400' };
+  const webrtc = WEBRTC_LABELS[webrtcState] ?? { label: 'Unknown', color: 'text-gray-400' };
 
   return (
     <div className={`space-y-2 ${className}`}>

@@ -73,11 +73,14 @@ export function useWebRTC({
     };
 
     // Track connection state changes
+    // RTCPeerConnection.connectionState can be: new|connecting|connected|disconnected|failed|closed
+    // Map to our WebRTCSignalingState (idle|offering|answering|connected|failed)
     pc.onconnectionstatechange = () => {
       console.log('[WebRTC] Connection state:', pc.connectionState);
-      setWebRTCState(pc.connectionState as 'connected' | 'failed');
-
-      if (pc.connectionState === 'failed') {
+      if (pc.connectionState === 'connected') {
+        setWebRTCState('connected');
+      } else if (pc.connectionState === 'failed') {
+        setWebRTCState('failed');
         socket?.emit('webrtc:ice-failure');
       }
     };
