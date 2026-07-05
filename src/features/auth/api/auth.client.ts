@@ -1,9 +1,10 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/auth.store';
+import { API_BASE_URL } from '@/config';
 
 // ─── Base instance ───────────────────────────────────────────
 
-const AUTH_BASE = '/api/v1/auth';
+const AUTH_BASE = `${API_BASE_URL}/api/v1/auth`;
 
 export const authClient = axios.create({
   baseURL: AUTH_BASE,

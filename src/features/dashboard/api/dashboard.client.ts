@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { useAuthStore } from '@/features/auth/store/auth.store';
+import { API_BASE_URL } from '@/config';
 
-const BASE = '/api/v1/dashboard';
+const BASE = `${API_BASE_URL}/api/v1/dashboard`;
 
 export const dashboardClient = axios.create({
   baseURL: BASE,

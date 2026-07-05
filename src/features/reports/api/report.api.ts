@@ -1,4 +1,5 @@
 import { reportClient } from './report.client';
+import { API_BASE_URL } from '@/config';
 import type {
   ApiEnvelope,
   ReportListData,
@@ -28,5 +29,5 @@ export const reportApi = {
     return data;
   },
 
-  getDownloadUrl: (id: string): string => `/api/v1/reports/${id}/download`,
+  getDownloadUrl: (id: string): string => `${API_BASE_URL}/api/v1/reports/${id}/download`,
 };
