@@ -39,4 +39,21 @@ export const interviewApi = {
     >(`/${id}/generate-invite`);
     return data;
   },
+
+  joinInterview: async (id: string): Promise<ApiResponse<{
+    id: string;
+    title: string;
+    candidateName: string;
+    waitingRoomStatus: string;
+  }>> => {
+    const { data } = await interviewClient.post<
+      ApiResponse<{
+        id: string;
+        title: string;
+        candidateName: string;
+        waitingRoomStatus: string;
+      }>
+    >(`/${id}/join`);
+    return data;
+  },
 };

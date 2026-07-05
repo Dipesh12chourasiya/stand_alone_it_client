@@ -141,3 +141,15 @@ export function useGenerateInvite() {
     },
   });
 }
+
+// ─── Join Interview (Recruiter) ─────────────────────────────────
+
+export function useJoinInterview() {
+  return useMutation({
+    mutationFn: (id: string) => interviewApi.joinInterview(id),
+
+    onError: (error: ApiError) => {
+      toast.error(error?.message || 'Failed to join interview.');
+    },
+  });
+}

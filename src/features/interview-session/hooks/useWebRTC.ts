@@ -5,8 +5,8 @@ import { useSessionStore } from '../store/session.store';
 interface UseWebRTCOptions {
   socket: Socket | null;
   localStream: MediaStream | null;
-  role: 'phone' | 'recruiter';
-  remoteRole: 'phone' | 'recruiter';
+  role: 'phone' | 'recruiter' | 'candidate';
+  remoteRole: 'phone' | 'recruiter' | 'candidate';
   onRemoteStream?: (stream: MediaStream) => void;
 }
 

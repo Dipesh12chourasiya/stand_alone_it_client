@@ -9,6 +9,13 @@ interface UseInterviewRoomOptions {
   onParticipantLeft?: (data: { role: string; userId: string }) => void;
   onInterviewStarted?: (data: { startedAt: string }) => void;
   onInterviewEnded?: (data: { endedAt: string }) => void;
+  onBothParticipantsReady?: (data: {
+    recruiterSocketId: string;
+    candidateSocketId: string;
+    timestamp: string;
+  }) => void;
+  /** Emitted when the waiting room status changes (replaces REST polling) */
+  onWaitingRoomStatusUpdate?: (data: { status: string; recruiterJoinedAt?: string }) => void;
 }
 
 /**
@@ -29,6 +36,8 @@ export function useInterviewRoom({
   onParticipantLeft,
   onInterviewStarted,
   onInterviewEnded,
+  onBothParticipantsReady,
+  onWaitingRoomStatusUpdate,
 }: UseInterviewRoomOptions) {
   // Stable refs so the connect handler always uses latest values
   const interviewIdRef = useRef(interviewId);
@@ -60,15 +69,24 @@ export function useInterviewRoom({
     };
   }, [socket, interviewId, role]);
 
+  // Stable refs for new callbacks
+  const onBothParticipantsReadyRef = useRef(onBothParticipantsReady);
+  onBothParticipantsReadyRef.current = onBothParticipantsReady;
+
+  const onWaitingRoomStatusUpdateRef = useRef(onWaitingRoomStatusUpdate);
+  onWaitingRoomStatusUpdateRef.current = onWaitingRoomStatusUpdate;
+
   // Listen for room events
   useEffect(() => {
     if (!socket) return;
 
     const handleParticipantJoined = (data: { role: string; userId: string }) => {
+      console.log(`[InterviewRoom] Participant joined: ${data.role}`);
       onParticipantJoined?.(data);
     };
 
     const handleParticipantLeft = (data: { role: string; userId: string }) => {
+      console.log(`[InterviewRoom] Participant left: ${data.role}`);
       onParticipantLeft?.(data);
     };
 
@@ -80,16 +98,34 @@ export function useInterviewRoom({
       onInterviewEnded?.(data);
     };
 
+    const handleBothReady = (data: {
+      recruiterSocketId: string;
+      candidateSocketId: string;
+      timestamp: string;
+    }) => {
+      console.log('[InterviewRoom] Both participants ready! Starting WebRTC...');
+      onBothParticipantsReadyRef.current?.(data);
+    };
+
+    const handleWaitingRoomUpdate = (data: { status: string; recruiterJoinedAt?: string }) => {
+      console.log(`[InterviewRoom] Waiting room status update: ${data.status}`);
+      onWaitingRoomStatusUpdateRef.current?.(data);
+    };
+
     socket.on('interview:participant-joined', handleParticipantJoined);
     socket.on('interview:participant-left', handleParticipantLeft);
     socket.on('interview:started', handleInterviewStarted);
     socket.on('interview:ended', handleInterviewEnded);
+    socket.on('interview:both-ready', handleBothReady);
+    socket.on('waiting-room:status-update', handleWaitingRoomUpdate);
 
     return () => {
       socket.off('interview:participant-joined', handleParticipantJoined);
       socket.off('interview:participant-left', handleParticipantLeft);
       socket.off('interview:started', handleInterviewStarted);
       socket.off('interview:ended', handleInterviewEnded);
+      socket.off('interview:both-ready', handleBothReady);
+      socket.off('waiting-room:status-update', handleWaitingRoomUpdate);
     };
   }, [socket, onParticipantJoined, onParticipantLeft, onInterviewStarted, onInterviewEnded]);
 

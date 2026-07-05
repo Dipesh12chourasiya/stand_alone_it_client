@@ -1,28 +1,48 @@
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useWaitingRoom, useJoinInterview } from '../hooks/useCandidate';
 import { WaitingStatusCard } from '../components/WaitingStatusCard';
+import { useSocket } from '@/features/interview-session/hooks/useSocket';
+import { useInterviewRoom } from '@/features/interview-session/hooks/useInterviewRoom';
+import { useWebRTC } from '@/features/interview-session/hooks/useWebRTC';
+import { useSessionStore } from '@/features/interview-session/store/session.store';
+import { VideoPlayer } from '@/features/interview-session/components/VideoPlayer';
+import { CameraPreview } from '@/features/interview-session/components/CameraPreview';
+import { startCameraStream, stopStream } from '@/features/interview-session/utils/media';
 import type { WaitingRoomData, JoinInterviewData } from '../types/candidate.types';
 
-function formatDate(iso: string): string {
-  try {
-    return new Intl.DateTimeFormat('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
-
+/**
+ * Candidate waiting room page.
+ *
+ * 1. Shows waiting status (Waiting → RecruiterJoined → InterviewStarted)
+ * 2. Connects to Socket.IO to join the interview room as 'candidate'
+ * 3. When both participants are ready, starts WebRTC as the answerer
+ * 4. Transitions to video call once WebRTC is established
+ *
+ * Falls back to REST polling for waiting room status when socket is not connected.
+ */
 export function CandidateWaitingPage() {
   const { token } = useParams<{ token: string }>();
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [webrtcStarted, setWebrtcStarted] = useState(false);
+  const [roomJoined, setRoomJoined] = useState(false);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
 
+  const {
+    remoteStream,
+    webrtcState,
+    setRemoteStream,
+    setWebRTCState,
+    setLocalStream,
+  } = useSessionStore();
+
+  // REST polling for waiting room status (backup)
   const {
     data: waitData,
     isLoading: waitLoading,
     isError: waitError,
+    refetch: refetchWaitingRoom,
   } = useWaitingRoom(token!);
 
   const {
@@ -30,6 +50,113 @@ export function CandidateWaitingPage() {
     isLoading: joinLoading,
     isError: joinError,
   } = useJoinInterview(token!);
+
+  // Extract interviewId from REST data
+  const waitRoom = waitData as WaitingRoomData | undefined;
+  const interview = joinData as JoinInterviewData | undefined;
+  const interviewId = waitRoom?.interviewId ?? null;
+
+  // Start camera on mount
+  useEffect(() => {
+    let stream: MediaStream | null = null;
+    let cancelled = false;
+
+    async function initMedia() {
+      stream = await startCameraStream();
+      if (cancelled) return;
+
+      if (stream) {
+        cameraStreamRef.current = stream;
+        setCameraStream(stream);
+        setLocalStream(stream);
+        console.log('[Candidate] Camera started');
+      } else {
+        setCameraError('Could not access camera. Please ensure camera permissions are granted.');
+        console.warn('[Candidate] Camera unavailable');
+      }
+    }
+
+    initMedia();
+
+    return () => {
+      cancelled = true;
+      stopStream(cameraStreamRef.current);
+      cameraStreamRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Socket connection — connect when interviewId is available
+  const { socket, connected: socketConnected } = useSocket({
+    enabled: !!interviewId && !cameraError,
+    onConnect: () => console.log('[Candidate] Socket connected'),
+    onDisconnect: () => console.log('[Candidate] Socket disconnected'),
+  });
+
+  // Join interview room
+  const { startInterview: _startInterview } = useInterviewRoom({
+    socket,
+    interviewId,
+    role: 'candidate',
+    onParticipantJoined: (data) => {
+      console.log('[Candidate] Participant joined:', data.role);
+    },
+    onParticipantLeft: (data) => {
+      console.log('[Candidate] Participant left:', data.role);
+    },
+    onBothParticipantsReady: () => {
+      console.log('[Candidate] Both participants ready — waiting for WebRTC offer');
+      setWebrtcStarted(true);
+    },
+    onWaitingRoomStatusUpdate: (data) => {
+      console.log('[Candidate] Waiting room status update:', data.status);
+      // Refetch REST data to update the WaitingStatusCard
+      refetchWaitingRoom();
+    },
+  });
+
+  // Track when room is joined
+  useEffect(() => {
+    if (socketConnected && interviewId) {
+      setRoomJoined(true);
+    }
+  }, [socketConnected, interviewId]);
+
+  // Clean up socket-related effects
+  useEffect(() => {
+    if (!socket) return;
+    return () => {
+      console.log('[Candidate] Cleaning up interview room');
+    };
+  }, [socket]);
+
+  // ─── WebRTC (Candidate = Answerer) ─────────────────────────
+
+  useWebRTC({
+    socket,
+    localStream: cameraStream,
+    role: 'candidate',
+    remoteRole: 'recruiter',
+    onRemoteStream: (stream) => {
+      console.log('[Candidate] Remote stream received from recruiter');
+      setRemoteStream(stream);
+      setWebRTCState('connected');
+    },
+  });
+
+  // ─── Clean up on unmount ────────────────────────────────────
+
+  useEffect(() => {
+    return () => {
+      stopStream(cameraStreamRef.current);
+      cameraStreamRef.current = null;
+      setRemoteStream(null);
+      setWebRTCState('idle');
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ─── Render States ─────────────────────────────────────────
 
   if (waitLoading || joinLoading) {
     return (
@@ -62,11 +189,73 @@ export function CandidateWaitingPage() {
     );
   }
 
-  const waitingRoom = waitData as WaitingRoomData;
-  const interview = joinData as JoinInterviewData;
   const isTerminal =
-    waitingRoom?.status === 'InterviewEnded' ||
-    waitingRoom?.status === 'Expired';
+    waitRoom?.status === 'InterviewEnded' ||
+    waitRoom?.status === 'Expired';
+
+  // ─── WebRTC Connected: Show Video Call ──────────────────────
+
+  if (webrtcStarted && webrtcState === 'connected') {
+    return (
+      <div className="relative flex min-h-dvh flex-col bg-neutral-950">
+        {/* Remote video (recruiter) — full screen background */}
+        <div className="flex flex-1 items-center justify-center bg-neutral-900 p-4">
+          <VideoPlayer stream={remoteStream} label="Recruiter" />
+        </div>
+
+        {/* Status bar */}
+        <div className="flex items-center justify-center gap-4 border-t border-neutral-800 bg-neutral-950 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-green-500" />
+            <span className="text-xs text-neutral-400">Connected</span>
+          </div>
+          <span className="text-xs text-neutral-600">{interview?.title}</span>
+        </div>
+
+        {/* Local preview — picture-in-picture */}
+        {cameraStream && (
+          <div className="absolute bottom-20 right-6 z-10">
+            <div className="overflow-hidden rounded-2xl border-2 border-white/20 shadow-xl">
+              <CameraPreview
+                stream={cameraStream}
+                mirrored
+                muted
+                label="You"
+                className="h-36 w-28"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ─── WebRTC Starting: Transition State ──────────────────────
+
+  if (webrtcStarted) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-neutral-50">
+        <div className="text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center">
+            <div className="h-10 w-10 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-900" />
+          </div>
+          <h2 className="mt-4 text-lg font-semibold text-neutral-900">
+            Establishing connection...
+          </h2>
+          <p className="mt-2 text-sm text-neutral-500">
+            Connecting with the recruiter. This should take a few seconds.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Waiting Room: Default State ────────────────────────────
+
+  const effectiveStatus =
+    socketConnected && roomJoined && waitRoom?.status === 'Waiting'
+      ? 'Waiting' // Already connected via socket, waiting for recruiter
+      : waitRoom?.status || 'Waiting';
 
   return (
     <div className="flex min-h-dvh items-center justify-center bg-neutral-50 p-4">
@@ -81,8 +270,23 @@ export function CandidateWaitingPage() {
           </p>
         </div>
 
-        {/* Status card */}
-        <WaitingStatusCard status={waitingRoom?.status} />
+        {/* Status card — shows real-time status */}
+        <WaitingStatusCard status={effectiveStatus} />
+
+        {/* Socket connection indicator */}
+        {socketConnected && roomJoined && (
+          <div className="flex items-center justify-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-green-500" />
+            <span className="text-xs text-neutral-500">Connected</span>
+          </div>
+        )}
+
+        {!socketConnected && interviewId && (
+          <div className="flex items-center justify-center gap-2">
+            <div className="h-2 w-2 animate-pulse rounded-full bg-amber-400" />
+            <span className="text-xs text-neutral-500">Connecting...</span>
+          </div>
+        )}
 
         {/* Interview details */}
         <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
@@ -114,23 +318,28 @@ export function CandidateWaitingPage() {
           </div>
         </div>
 
-        {/* Meeting link (once started) */}
-        {waitingRoom?.status === 'InterviewStarted' && interview?.meetingLink && (
-          <div className="rounded-2xl border border-green-200 bg-green-50 p-6 shadow-sm">
-            <h3 className="text-sm font-semibold text-green-900">
-              Meeting Link
+        {/* Camera preview (candidate's own camera) */}
+        {cameraStream && (
+          <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+            <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-neutral-500">
+              Your Camera Preview
             </h3>
-            <a
-              href={interview.meetingLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-green-700 hover:text-green-600 transition-colors break-all"
-            >
-              {interview.meetingLink}
-              <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-              </svg>
-            </a>
+            <CameraPreview
+              stream={cameraStream}
+              mirrored
+              muted
+              label="Your Camera"
+              className="mx-auto max-w-sm rounded-xl"
+            />
+          </div>
+        )}
+
+        {cameraError && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center shadow-sm">
+            <p className="text-sm text-amber-700">{cameraError}</p>
+            <p className="mt-1 text-xs text-amber-500">
+              The recruiter may still see you without video.
+            </p>
           </div>
         )}
 
@@ -143,6 +352,19 @@ export function CandidateWaitingPage() {
       </div>
     </div>
   );
+}
+
+function formatDate(iso: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
 }
 
 function Row({ label, value }: { label: string; value: string }) {
