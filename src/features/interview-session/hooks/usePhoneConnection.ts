@@ -31,24 +31,13 @@ export function usePhoneConnection({
     setPhoneDeviceInfo,
   } = useSessionStore();
 
-  // Join/leave session room
+  // Join/leave session room and listen for phone events
   useEffect(() => {
     if (!socket || !sessionToken) return;
 
-    if (role === 'phone') {
-      // Phone joins the session (include interviewId so the server
-      // can also route us into the interview room for WebRTC signaling)
-      socket.emit('phone:join-session', {
-        sessionToken,
-        interviewId: interviewId || undefined,
-      });
-
-      return () => {
-        socket.emit('phone:leave-session');
-      };
-    }
-
-    // Recruiter: listen for phone events
+    // Common listeners for BOTH phone and recruiter roles.
+    // The phone needs these because the server emits 'phone:connected'
+    // back to the phone socket after processing phone:join-session.
     const handleConnected = () => {
       setPhoneStatus('connected');
       onPhoneConnected?.();
@@ -79,6 +68,14 @@ export function usePhoneConnection({
       setPhoneDeviceInfo({ network: data });
     });
 
+    // Role-specific join action
+    if (role === 'phone') {
+      socket.emit('phone:join-session', {
+        sessionToken,
+        interviewId: interviewId || undefined,
+      });
+    }
+
     return () => {
       socket.off('phone:connected', handleConnected);
       socket.off('phone:disconnected', handleDisconnected);
@@ -87,6 +84,10 @@ export function usePhoneConnection({
       socket.off('phone:mic-ready');
       socket.off('phone:battery');
       socket.off('phone:network');
+
+      if (role === 'phone') {
+        socket.emit('phone:leave-session');
+      }
     };
   }, [socket, sessionToken, interviewId, role, setPhoneStatus, setPhoneDeviceInfo, onPhoneConnected, onPhoneDisconnected]);
 

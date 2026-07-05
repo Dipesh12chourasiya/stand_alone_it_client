@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useSessionStore } from '../store/session.store';
 import { useSocket } from '../hooks/useSocket';
 import { usePhoneConnection } from '../hooks/usePhoneConnection';
@@ -10,6 +11,8 @@ import { ConnectionStatus } from '../components/ConnectionStatus';
 import { WaitingCard } from '../components/WaitingCard';
 import { PhoneStatus } from '../components/PhoneStatus';
 import { startCameraStream, stopStream } from '../utils/media';
+import { sessionApi } from '../api/session.api';
+import type { ApiEnvelope, SessionWithInterview } from '../types/session.types';
 
 /**
  * Phone session page.
@@ -17,11 +20,15 @@ import { startCameraStream, stopStream } from '../utils/media';
  * The device scanning the QR lands here. It opens its camera,
  * sends device info via Socket.IO, initiates WebRTC with the recruiter,
  * and streams its camera feed.
+ *
+ * interviewId is obtained from:
+ *   1. location.state (passed during navigation from PhoneJoinPage)
+ *   2. Fallback: fetched from the API via sessionApi.getSession(sessionToken)
+ *      (covers page refresh or direct URL entry)
  */
 export function PhoneSessionPage() {
   const { sessionToken } = useParams<{ sessionToken: string }>();
   const location = useLocation();
-  const interviewId = (location.state as { interviewId?: string } | null)?.interviewId ?? null;
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [micStream, _setMicStream] = useState<MediaStream | null>(null);
 
@@ -35,6 +42,19 @@ export function PhoneSessionPage() {
   } = useSessionStore();
 
   const { permissions: _permissions } = useMediaPermissions();
+
+  // interviewId from navigation state (lost on page refresh) with API fallback
+  const stateInterviewId = (location.state as { interviewId?: string } | null)?.interviewId ?? null;
+
+  const { data: sessionData } = useQuery({
+    queryKey: ['phone-session', sessionToken],
+    queryFn: () => sessionApi.getSession(sessionToken!),
+    enabled: !stateInterviewId && !!sessionToken,
+    retry: false,
+    select: (response: ApiEnvelope<{ session: SessionWithInterview }>) => response.data.session,
+  });
+
+  const interviewId = stateInterviewId ?? sessionData?.interviewId?._id ?? null;
 
   // Socket connection
   const { socket } = useSocket({
@@ -50,8 +70,10 @@ export function PhoneSessionPage() {
 
   // Start camera on mount
   useEffect(() => {
+    let stream: MediaStream | null = null;
+
     async function initMedia() {
-      const stream = await startCameraStream();
+      stream = await startCameraStream();
       if (stream) {
         setCameraStream(stream);
       }
@@ -60,7 +82,9 @@ export function PhoneSessionPage() {
     initMedia();
 
     return () => {
-      stopStream(cameraStream);
+      if (stream) {
+        stopStream(stream);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
