@@ -1,10 +1,16 @@
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { useInterview, useDeleteInterview, useGenerateInvite } from '../hooks/useInterviews';
+import {
+  useInterview,
+  useDeleteInterview,
+  useGenerateInvite,
+  useJoinInterview,
+} from '../hooks/useInterviews';
 import { StatusBadge } from '../components/StatusBadge';
 import { DetailSkeleton } from '../components/LoadingSkeleton';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { useState, useCallback } from 'react';
+import toast from 'react-hot-toast';
 
 export function InterviewDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -12,6 +18,7 @@ export function InterviewDetailsPage() {
   const { data: interview, isLoading, isError, error } = useInterview(id);
   const deleteMutation = useDeleteInterview();
   const generateInvite = useGenerateInvite();
+  const joinInterviewMutation = useJoinInterview();
   const [showDelete, setShowDelete] = useState(false);
   const [inviteToken, setInviteToken] = useState<string | null>(
     interview?.inviteToken ?? null,
@@ -33,6 +40,17 @@ export function InterviewDetailsPage() {
       },
     });
   }, [id, generateInvite]);
+
+  const handleJoinInterview = useCallback(() => {
+    if (!id) return;
+    joinInterviewMutation.mutate(id, {
+      onSuccess: () => {
+        console.log('[Recruiter] Join interview API success — navigating to session page');
+        toast.success('Joining interview...');
+        navigate(`/session/${id}?join=true`);
+      },
+    });
+  }, [id, joinInterviewMutation, navigate]);
 
   const inviteLink = inviteToken
     ? `${window.location.origin}/candidate/join/${inviteToken}`
@@ -162,6 +180,33 @@ export function InterviewDetailsPage() {
               </p>
             </Section>
           )}
+
+          {/* Join Interview — Recruiter joins the live WebRTC interview session */}
+          <Section title="Live Interview">
+            <button
+              type="button"
+              onClick={handleJoinInterview}
+              disabled={joinInterviewMutation.isPending}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:bg-green-300 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {joinInterviewMutation.isPending ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Joining...
+                </>
+              ) : (
+                <>
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                  </svg>
+                  Join Interview
+                </>
+              )}
+            </button>
+            <span className="ml-3 text-xs text-neutral-400">
+              Start live video interview with the candidate
+            </span>
+          </Section>
 
           {/* Phone Session — always available, not gated on inviteToken */}
           <Section title="Phone Monitoring">

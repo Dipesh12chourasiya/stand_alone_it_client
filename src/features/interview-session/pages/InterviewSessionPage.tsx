@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { sessionApi } from '../api/session.api';
@@ -30,8 +30,10 @@ import type { PhoneSession, ApiEnvelope } from '../types/session.types';
  */
 export function InterviewSessionPage() {
   const { id: interviewId } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const [session, setSession] = useState<PhoneSession | null>(null);
   const [sessionUrl, setSessionUrl] = useState('');
+  const autoJoinTriggeredRef = useRef(false);
 
   // Candidate interview mode state
   const [interviewMode, setInterviewMode] = useState<'idle' | 'joining' | 'waiting' | 'candidate-ready' | 'webrtc-connected'>('idle');
@@ -185,6 +187,22 @@ export function InterviewSessionPage() {
       setInterviewMode('idle');
     },
   });
+
+  // Auto-join interview when navigated from details page with ?join=true
+  useEffect(() => {
+    if (
+      searchParams.get('join') === 'true' &&
+      !autoJoinTriggeredRef.current &&
+      interviewId
+    ) {
+      autoJoinTriggeredRef.current = true;
+      console.log('[Recruiter] Auto-join triggered from URL param — joining interview');
+      setInterviewMode('joining');
+      joinInterview();
+    }
+    // Only run when interviewId becomes available
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [interviewId, searchParams]);
 
   const handleJoinInterview = useCallback(() => {
     if (!interviewId) return;
