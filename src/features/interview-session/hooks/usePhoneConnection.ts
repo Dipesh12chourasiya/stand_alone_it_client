@@ -6,6 +6,7 @@ import type { PhoneStatusUpdate } from '../types/session.types';
 interface UsePhoneConnectionOptions {
   socket: Socket | null;
   sessionToken: string | null;
+  interviewId?: string | null;
   role: 'recruiter' | 'phone';
   onPhoneConnected?: () => void;
   onPhoneDisconnected?: () => void;
@@ -20,6 +21,7 @@ interface UsePhoneConnectionOptions {
 export function usePhoneConnection({
   socket,
   sessionToken,
+  interviewId,
   role,
   onPhoneConnected,
   onPhoneDisconnected,
@@ -34,8 +36,12 @@ export function usePhoneConnection({
     if (!socket || !sessionToken) return;
 
     if (role === 'phone') {
-      // Phone joins the session
-      socket.emit('phone:join-session', { sessionToken });
+      // Phone joins the session (include interviewId so the server
+      // can also route us into the interview room for WebRTC signaling)
+      socket.emit('phone:join-session', {
+        sessionToken,
+        interviewId: interviewId || undefined,
+      });
 
       return () => {
         socket.emit('phone:leave-session');
@@ -82,7 +88,7 @@ export function usePhoneConnection({
       socket.off('phone:battery');
       socket.off('phone:network');
     };
-  }, [socket, sessionToken, role, setPhoneStatus, setPhoneDeviceInfo, onPhoneConnected, onPhoneDisconnected]);
+  }, [socket, sessionToken, interviewId, role, setPhoneStatus, setPhoneDeviceInfo, onPhoneConnected, onPhoneDisconnected]);
 
   // Phone sends device info updates
   const sendDeviceInfo = useCallback(

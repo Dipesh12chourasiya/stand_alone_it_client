@@ -33,6 +33,7 @@ export function InterviewSessionPage() {
     webrtcState,
     remoteStream,
     setPhoneStatus,
+    setRemoteStream,
   } = useSessionStore();
 
   // Socket connection
@@ -109,6 +110,7 @@ export function InterviewSessionPage() {
     localStream: null, // Recruiter doesn't send their camera
     role: 'recruiter',
     remoteRole: 'phone',
+    onRemoteStream: (stream) => setRemoteStream(stream),
   });
 
   // Create session on mount if not already loaded

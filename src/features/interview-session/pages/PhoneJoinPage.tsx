@@ -42,7 +42,10 @@ export function PhoneJoinPage() {
     },
     onSuccess: () => {
       toast.success('Connected! Setting up camera...');
-      navigate(`/phone/session/${sessionToken}`, { replace: true });
+      navigate(`/phone/session/${sessionToken}`, {
+        replace: true,
+        state: { interviewId: data.interviewId },
+      });
     },
     onError: () => {
       toast.error('Failed to connect phone.');

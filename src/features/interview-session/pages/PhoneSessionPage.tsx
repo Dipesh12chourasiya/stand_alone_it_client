@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { useSessionStore } from '../store/session.store';
 import { useSocket } from '../hooks/useSocket';
 import { usePhoneConnection } from '../hooks/usePhoneConnection';
@@ -20,6 +20,8 @@ import { startCameraStream, stopStream } from '../utils/media';
  */
 export function PhoneSessionPage() {
   const { sessionToken } = useParams<{ sessionToken: string }>();
+  const location = useLocation();
+  const interviewId = (location.state as { interviewId?: string } | null)?.interviewId ?? null;
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [micStream, _setMicStream] = useState<MediaStream | null>(null);
 
@@ -67,6 +69,7 @@ export function PhoneSessionPage() {
   const { sendDeviceInfo } = usePhoneConnection({
     socket: socket.current,
     sessionToken: sessionToken || null,
+    interviewId,
     role: 'phone',
     onPhoneConnected: () => {
       setPhoneStatus('connected');
