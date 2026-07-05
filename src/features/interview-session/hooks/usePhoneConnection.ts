@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { type Socket } from 'socket.io-client';
 import { useSessionStore } from '../store/session.store';
 import type { PhoneStatusUpdate } from '../types/session.types';
@@ -31,21 +31,26 @@ export function usePhoneConnection({
     setPhoneDeviceInfo,
   } = useSessionStore();
 
+  // Stable refs for callbacks — prevents stale closures in socket listeners
+  const onPhoneConnectedRef = useRef(onPhoneConnected);
+  onPhoneConnectedRef.current = onPhoneConnected;
+
+  const onPhoneDisconnectedRef = useRef(onPhoneDisconnected);
+  onPhoneDisconnectedRef.current = onPhoneDisconnected;
+
   // Join/leave session room and listen for phone events
   useEffect(() => {
     if (!socket || !sessionToken) return;
 
     // Common listeners for BOTH phone and recruiter roles.
-    // The phone needs these because the server emits 'phone:connected'
-    // back to the phone socket after processing phone:join-session.
     const handleConnected = () => {
       setPhoneStatus('connected');
-      onPhoneConnected?.();
+      onPhoneConnectedRef.current?.();
     };
 
     const handleDisconnected = () => {
       setPhoneStatus('disconnected');
-      onPhoneDisconnected?.();
+      onPhoneDisconnectedRef.current?.();
     };
 
     const handleStatus = (data: PhoneStatusUpdate) => {
@@ -89,7 +94,7 @@ export function usePhoneConnection({
         socket.emit('phone:leave-session');
       }
     };
-  }, [socket, sessionToken, interviewId, role, setPhoneStatus, setPhoneDeviceInfo, onPhoneConnected, onPhoneDisconnected]);
+  }, [socket, sessionToken, interviewId, role, setPhoneStatus, setPhoneDeviceInfo]);
 
   // Phone sends device info updates
   const sendDeviceInfo = useCallback(

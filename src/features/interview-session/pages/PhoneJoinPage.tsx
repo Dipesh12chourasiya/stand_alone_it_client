@@ -40,11 +40,18 @@ export function PhoneJoinPage() {
         camera: permissions.camera,
       });
     },
-    onSuccess: () => {
+    onSuccess: (response: ApiEnvelope<{ session: PhoneSession }>) => {
       toast.success('Connected! Setting up camera...');
+      const interviewId = response.data.session.interviewId;
+
+      if (!interviewId) {
+        toast.error('Session data incomplete — interview ID missing.');
+        return;
+      }
+
       navigate(`/phone/session/${sessionToken}`, {
         replace: true,
-        state: { interviewId: data.interviewId },
+        state: { interviewId },
       });
     },
     onError: () => {

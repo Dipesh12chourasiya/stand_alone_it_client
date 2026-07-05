@@ -28,6 +28,10 @@ export function useWebRTC({
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const { setWebRTCState } = useSessionStore();
 
+  // Stored refs for stable callback references
+  const onRemoteStreamRef = useRef(onRemoteStream);
+  onRemoteStreamRef.current = onRemoteStream;
+
   // ICE servers: local STUN for development
   const ICE_SERVERS: RTCConfiguration = {
     iceServers: [
@@ -36,10 +40,12 @@ export function useWebRTC({
     ],
   };
 
-  // Create the peer connection
+  // Create the peer connection — stable identity via useRef tracking
   const createPeerConnection = useCallback(() => {
+    // Close existing connection before creating a new one
     if (pcRef.current) {
       pcRef.current.close();
+      pcRef.current = null;
     }
 
     const pc = new RTCPeerConnection(ICE_SERVERS);
@@ -47,7 +53,7 @@ export function useWebRTC({
 
     // Forward ICE candidates through signaling
     pc.onicecandidate = (event) => {
-      if (event.candidate && socket) {
+      if (event.candidate && socket?.connected) {
         socket.emit('webrtc:ice-candidate', {
           candidate: event.candidate.toJSON(),
           toRole: remoteRole,
@@ -59,7 +65,7 @@ export function useWebRTC({
     pc.ontrack = (event) => {
       const [stream] = event.streams;
       if (stream) {
-        onRemoteStream?.(stream);
+        onRemoteStreamRef.current?.(stream);
       }
     };
 
@@ -75,24 +81,28 @@ export function useWebRTC({
     // Add local tracks to the connection
     if (localStream) {
       for (const track of localStream.getTracks()) {
-        pc.addTrack(track, localStream);
+        if (track.readyState !== 'ended') {
+          pc.addTrack(track, localStream);
+        }
       }
     }
 
     return pc;
-  }, [localStream, socket, remoteRole, onRemoteStream, setWebRTCState]);
+  }, [localStream, socket, remoteRole, setWebRTCState]);
 
-  // Phone: create and send offer
+  // Stable offer creator — recreates when localStream or socket changes
   const createOffer = useCallback(async () => {
     try {
       const pc = createPeerConnection();
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
-      socket?.emit('webrtc:offer', {
-        sdp: pc.localDescription,
-        toRole: remoteRole,
-      });
+      if (socket?.connected) {
+        socket.emit('webrtc:offer', {
+          sdp: pc.localDescription,
+          toRole: remoteRole,
+        });
+      }
 
       setWebRTCState('offering');
     } catch (err) {
@@ -144,7 +154,7 @@ export function useWebRTC({
     async (candidate: RTCIceCandidateInit) => {
       try {
         const pc = pcRef.current;
-        if (!pc) return;
+        if (!pc || !candidate) return;
 
         await pc.addIceCandidate(new RTCIceCandidate(candidate));
       } catch (err) {
@@ -154,21 +164,21 @@ export function useWebRTC({
     [],
   );
 
-  // Listen for signaling events
+  // Listen for signaling events — stable listener refs prevent re-attach loops
+  const stableOnOffer = useRef<(data: { sdp: RTCSessionDescriptionInit }) => void>(() => {});
+  const stableOnAnswer = useRef<(data: { sdp: RTCSessionDescriptionInit }) => void>(() => {});
+  const stableOnIce = useRef<(data: { candidate: RTCIceCandidateInit }) => void>(() => {});
+
+  stableOnOffer.current = (data) => handleOffer(data.sdp);
+  stableOnAnswer.current = (data) => handleAnswer(data.sdp);
+  stableOnIce.current = (data) => handleIceCandidate(data.candidate);
+
   useEffect(() => {
     if (!socket) return;
 
-    const onOffer = (data: { sdp: RTCSessionDescriptionInit }) => {
-      handleOffer(data.sdp);
-    };
-
-    const onAnswer = (data: { sdp: RTCSessionDescriptionInit }) => {
-      handleAnswer(data.sdp);
-    };
-
-    const onIce = (data: { candidate: RTCIceCandidateInit }) => {
-      handleIceCandidate(data.candidate);
-    };
+    const onOffer = (data: { sdp: RTCSessionDescriptionInit }) => stableOnOffer.current?.(data);
+    const onAnswer = (data: { sdp: RTCSessionDescriptionInit }) => stableOnAnswer.current?.(data);
+    const onIce = (data: { candidate: RTCIceCandidateInit }) => stableOnIce.current?.(data);
 
     socket.on('webrtc:offer-forward', onOffer);
     socket.on('webrtc:answer-forward', onAnswer);
@@ -179,7 +189,7 @@ export function useWebRTC({
       socket.off('webrtc:answer-forward', onAnswer);
       socket.off('webrtc:ice-candidate-forward', onIce);
     };
-  }, [socket, handleOffer, handleAnswer, handleIceCandidate]);
+  }, [socket]);
 
   // Clean up on unmount
   useEffect(() => {
@@ -190,17 +200,6 @@ export function useWebRTC({
       }
     };
   }, []);
-
-  // Send a heartbeat to keep the WebRTC pipeline alive
-  useEffect(() => {
-    if (!socket) return;
-
-    const interval = setInterval(() => {
-      socket.emit('heartbeat');
-    }, 30_000);
-
-    return () => clearInterval(interval);
-  }, [socket]);
 
   return { createOffer };
 }

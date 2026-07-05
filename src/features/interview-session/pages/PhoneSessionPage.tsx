@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useSessionStore } from '../store/session.store';
@@ -20,17 +20,14 @@ import type { ApiEnvelope, SessionWithInterview } from '../types/session.types';
  * The device scanning the QR lands here. It opens its camera,
  * sends device info via Socket.IO, initiates WebRTC with the recruiter,
  * and streams its camera feed.
- *
- * interviewId is obtained from:
- *   1. location.state (passed during navigation from PhoneJoinPage)
- *   2. Fallback: fetched from the API via sessionApi.getSession(sessionToken)
- *      (covers page refresh or direct URL entry)
  */
 export function PhoneSessionPage() {
   const { sessionToken } = useParams<{ sessionToken: string }>();
   const location = useLocation();
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const [micStream, _setMicStream] = useState<MediaStream | null>(null);
+  const cameraTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
     phoneStatus,
@@ -68,20 +65,42 @@ export function PhoneSessionPage() {
     },
   });
 
-  // Start camera on mount
+  // Start camera on mount with timeout
   useEffect(() => {
     let stream: MediaStream | null = null;
+    let cancelled = false;
+
+    // Timeout: if camera doesn't start in 15s, show error
+    cameraTimeoutRef.current = setTimeout(() => {
+      if (!cancelled && !cameraStream) {
+        setCameraError('Camera did not start. Please check permissions and try again.');
+      }
+    }, 15_000);
 
     async function initMedia() {
       stream = await startCameraStream();
+      if (cancelled) return;
+
+      if (cameraTimeoutRef.current) {
+        clearTimeout(cameraTimeoutRef.current);
+        cameraTimeoutRef.current = null;
+      }
+
       if (stream) {
         setCameraStream(stream);
+      } else {
+        setCameraError('Could not access camera. Please ensure camera permissions are granted.');
       }
     }
 
     initMedia();
 
     return () => {
+      cancelled = true;
+      if (cameraTimeoutRef.current) {
+        clearTimeout(cameraTimeoutRef.current);
+        cameraTimeoutRef.current = null;
+      }
       if (stream) {
         stopStream(stream);
       }
@@ -91,7 +110,7 @@ export function PhoneSessionPage() {
 
   // Phone connection socket events
   const { sendDeviceInfo } = usePhoneConnection({
-    socket: socket.current,
+    socket,
     sessionToken: sessionToken || null,
     interviewId,
     role: 'phone',
@@ -99,9 +118,9 @@ export function PhoneSessionPage() {
       setPhoneStatus('connected');
       // Send device info once connected
       sendDeviceInfo({
-        cameraStatus: cameraStream ? 'ready' : 'unavailable',
+        cameraStatus: cameraStream ? 'ready' : cameraError ? 'error' : 'starting',
         micStatus: micStream ? 'ready' : 'unavailable',
-        battery: undefined, // Will be sent separately
+        battery: undefined,
         network: {
           type: navigator.onLine ? 'online' : 'offline',
         },
@@ -111,7 +130,7 @@ export function PhoneSessionPage() {
 
   // WebRTC: phone sends camera stream to recruiter
   const { createOffer } = useWebRTC({
-    socket: socket.current,
+    socket,
     localStream: cameraStream,
     role: 'phone',
     remoteRole: 'recruiter',
@@ -122,7 +141,7 @@ export function PhoneSessionPage() {
 
   // Initiate WebRTC once camera and socket are ready
   useEffect(() => {
-    if (cameraStream && socket.current?.connected && phoneStatus === 'connected') {
+    if (socket?.connected && cameraStream && phoneStatus === 'connected') {
       // Brief delay to ensure socket room is fully joined
       const timer = setTimeout(() => {
         createOffer();
@@ -130,11 +149,11 @@ export function PhoneSessionPage() {
 
       return () => clearTimeout(timer);
     }
-  }, [cameraStream, socket, phoneStatus, createOffer]);
+  }, [socket, cameraStream, phoneStatus, createOffer]);
 
   // Send battery info periodically
   useEffect(() => {
-    if (!socket.current || !sessionToken) return;
+    if (!socket || !sessionToken) return;
 
     const sendBattery = async () => {
       try {
@@ -156,13 +175,28 @@ export function PhoneSessionPage() {
     return () => clearInterval(interval);
   }, [socket, sessionToken, sendDeviceInfo]);
 
-  if (!cameraStream) {
+  // Camera loading state
+  if (!cameraStream && !cameraError) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-900">
         <WaitingCard
           message="Starting camera..."
           icon="camera"
         />
+      </div>
+    );
+  }
+
+  // Camera error state (not a blank page)
+  if (cameraError && !cameraStream) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gray-900 p-8 text-center">
+        <div className="text-4xl">📷</div>
+        <h2 className="text-lg font-semibold text-white">Camera Unavailable</h2>
+        <p className="max-w-sm text-sm text-gray-400">{cameraError}</p>
+        <p className="text-xs text-gray-500">
+          The recruiter may still start the session without video.
+        </p>
       </div>
     );
   }

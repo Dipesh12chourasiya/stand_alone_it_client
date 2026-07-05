@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { sessionApi } from '../api/session.api';
 import { useSocket } from '../hooks/useSocket';
@@ -21,6 +21,10 @@ import type { PhoneSession, ApiEnvelope } from '../types/session.types';
  *
  * Displays the QR code for phone pairing, realtime connection status,
  * and the phone camera feed once WebRTC establishes.
+ *
+ * Session creation is idempotent: the server reuses an existing active
+ * session if one exists, so we create immediately on mount without a
+ * separate "check for existing" query.
  */
 export function InterviewSessionPage() {
   const { id: interviewId } = useParams<{ id: string }>();
@@ -42,7 +46,7 @@ export function InterviewSessionPage() {
     onConnect: () => console.log('[Session] Socket connected'),
   });
 
-  // Create the phone session
+  // Create (or reuse) the phone session — runs once on mount
   const { mutate: createSession, isPending: creatingSession } = useMutation({
     mutationFn: () => sessionApi.createSession(interviewId!),
     onSuccess: (response: ApiEnvelope<{ session: PhoneSession }>) => {
@@ -51,34 +55,22 @@ export function InterviewSessionPage() {
       setSessionUrl(
         `${window.location.origin}/phone/join/${phoneSession.sessionToken}`,
       );
-      toast.success('Phone session created. Scan the QR code.');
     },
     onError: () => {
       toast.error('Failed to create phone session.');
     },
   });
 
-  // Fetch existing session on mount
-  const { isLoading: loadingSession, data: activeSession } = useQuery({
-    queryKey: ['phone-session', interviewId],
-    queryFn: () => sessionApi.getActiveSession(interviewId!),
-    enabled: !!interviewId,
-    retry: false,
-    select: (response: ApiEnvelope<{ session: PhoneSession | null }>) => response.data.session,
-  });
-
-  // Restore existing session data when loaded
+  // Create session immediately on mount (server reuses existing if valid)
   useEffect(() => {
-    if (!activeSession) return;
-    setSession(activeSession);
-    setSessionUrl(
-      `${window.location.origin}/phone/join/${activeSession.sessionToken}`,
-    );
-  }, [activeSession]);
+    if (interviewId && !session && !creatingSession) {
+      createSession();
+    }
+  }, [interviewId, session, creatingSession, createSession]);
 
   // Join interview room
   useInterviewRoom({
-    socket: socket.current,
+    socket,
     interviewId: interviewId || null,
     role: 'recruiter',
     onParticipantJoined: (data) => {
@@ -97,7 +89,7 @@ export function InterviewSessionPage() {
 
   // Phone connection socket events
   usePhoneConnection({
-    socket: socket.current,
+    socket,
     sessionToken: session?.sessionToken || null,
     role: 'recruiter',
     onPhoneConnected: () => setPhoneStatus('connected'),
@@ -106,28 +98,21 @@ export function InterviewSessionPage() {
 
   // WebRTC: receive phone camera stream
   useWebRTC({
-    socket: socket.current,
+    socket,
     localStream: null, // Recruiter doesn't send their camera
     role: 'recruiter',
     remoteRole: 'phone',
     onRemoteStream: (stream) => setRemoteStream(stream),
   });
 
-  // Create session on mount if not already loaded
-  useEffect(() => {
-    if (interviewId && !session && !creatingSession && !loadingSession) {
-      createSession();
-    }
-  }, [interviewId, session, creatingSession, loadingSession, createSession]);
-
   const handleRegenerateQR = useCallback(() => {
-    if (interviewId) {
+    if (interviewId && !creatingSession) {
       createSession();
     }
-  }, [interviewId, createSession]);
+  }, [interviewId, createSession, creatingSession]);
 
-  if (loadingSession) {
-    return <WaitingCard message="Loading session..." />;
+  if (creatingSession && !session) {
+    return <WaitingCard message="Generating QR code..." icon="phone" />;
   }
 
   const sidebar = (

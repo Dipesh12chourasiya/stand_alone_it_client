@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { type Socket } from 'socket.io-client';
 import { getSocket, disconnectSocket } from '../services/socket.service';
 import { useAuthStore } from '@/features/auth/store/auth.store';
@@ -13,47 +13,57 @@ interface UseSocketOptions {
 /**
  * Connect to the Socket.IO server and manage the connection lifecycle.
  *
- * The recruiter's JWT is sent as auth so the server knows who they are.
- * Returns the connected socket instance.
+ * Returns a `socket` instance + a `connected` flag so consumers can
+ * react to connection state changes (triggers re-renders on connect).
  */
 export function useSocket(options: UseSocketOptions = {}) {
   const { enabled = true, onConnect, onDisconnect: onDisconnectCb, onError } = options;
-  const socketRef = useRef<Socket | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [connected, setConnected] = useState(false);
   const token = useAuthStore((state) => state.token);
 
   useEffect(() => {
     if (!enabled) return;
 
-    const socket = getSocket(token || undefined);
-    socketRef.current = socket;
+    const instance = getSocket(token || undefined);
+    setSocket(instance);
+    setConnected(instance.connected);
 
-    if (socket.connected) {
+    if (instance.connected) {
       onConnect?.();
     }
 
-    socket.on('connect', () => {
+    const handleConnect = () => {
+      setSocket(instance);
+      setConnected(true);
       onConnect?.();
-    });
+    };
 
-    socket.on('disconnect', (reason) => {
+    const handleDisconnect = (reason: string) => {
+      setConnected(false);
       onDisconnectCb?.(reason);
-    });
+    };
 
-    socket.on('connect_error', (err) => {
+    const handleError = (err: Error) => {
       onError?.(err.message);
-    });
+    };
+
+    instance.on('connect', handleConnect);
+    instance.on('disconnect', handleDisconnect);
+    instance.on('connect_error', handleError);
 
     return () => {
-      socket.off('connect');
-      socket.off('disconnect');
-      socket.off('connect_error');
+      instance.off('connect', handleConnect);
+      instance.off('disconnect', handleDisconnect);
+      instance.off('connect_error', handleError);
     };
   }, [enabled, token, onConnect, onDisconnectCb, onError]);
 
   const disconnect = useCallback(() => {
     disconnectSocket();
-    socketRef.current = null;
+    setSocket(null);
+    setConnected(false);
   }, []);
 
-  return { socket: socketRef, disconnect };
+  return { socket, connected, disconnect };
 }

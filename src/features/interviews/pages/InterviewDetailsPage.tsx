@@ -163,23 +163,21 @@ export function InterviewDetailsPage() {
             </Section>
           )}
 
-          {/* Phone Session */}
-          {interview.inviteToken && (
-            <Section title="Phone Monitoring">
-              <Link
-                to={`/session/${interview.id}`}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                Start Phone Session
-              </Link>
-              <span className="ml-3 text-xs text-neutral-400">
-                Generate QR code for phone camera monitoring
-              </span>
-            </Section>
-          )}
+          {/* Phone Session — always available, not gated on inviteToken */}
+          <Section title="Phone Monitoring">
+            <Link
+              to={`/session/${interview.id}`}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              Start Phone Session
+            </Link>
+            <span className="ml-3 text-xs text-neutral-400">
+              Generate QR code for phone camera monitoring
+            </span>
+          </Section>
 
           {/* Invitation */}
           <Section title="Candidate Invitation">
