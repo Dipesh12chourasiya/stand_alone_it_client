@@ -32,13 +32,30 @@ export function useWebRTC({
   const onRemoteStreamRef = useRef(onRemoteStream);
   onRemoteStreamRef.current = onRemoteStream;
 
-  // ICE servers: local STUN for development
-  const ICE_SERVERS: RTCConfiguration = {
-    iceServers: [
+  // ICE servers: STUN (always) + TURN (from env vars, required for cross-network)
+  const ICE_SERVERS: RTCConfiguration = (() => {
+    const servers: RTCIceServer[] = [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
-    ],
-  };
+    ];
+
+    const turnUrl = import.meta.env.VITE_TURN_URL;
+    if (turnUrl) {
+      const turnServer: RTCIceServer = { urls: [turnUrl] };
+      const user = import.meta.env.VITE_TURN_USERNAME;
+      const cred = import.meta.env.VITE_TURN_CREDENTIAL;
+      if (user && cred) {
+        turnServer.username = user;
+        turnServer.credential = cred;
+      }
+      servers.push(turnServer);
+      console.log('[WebRTC] TURN server configured:', turnUrl);
+    } else {
+      console.warn('[WebRTC] No TURN server configured — cross-network ICE will likely fail');
+    }
+
+    return { iceServers: servers };
+  })();
 
   // Create the peer connection — stable identity via useRef tracking
   const createPeerConnection = useCallback(() => {
@@ -51,10 +68,22 @@ export function useWebRTC({
     const pc = new RTCPeerConnection(ICE_SERVERS);
     pcRef.current = pc;
 
-    // Forward ICE candidates through signaling
+    // Forward ICE candidates through signaling with type classification
     pc.onicecandidate = (event) => {
       if (event.candidate && socket?.connected) {
-        console.log('[WebRTC] Sending ICE candidate');
+        const c = event.candidate;
+        const type = c.type || 'unknown';
+        const transport = c.protocol || 'unknown';
+        const addr = c.address || 'unknown';
+        console.log(
+          `[WebRTC] ICE candidate — type:${type} protocol:${transport} ` +
+          `address:${addr}:${c.port}`
+        );
+        if (type === 'relay') {
+          console.log('[WebRTC] ✅ Relay candidate gathered — TURN is reachable');
+        } else if (type === 'srflx') {
+          console.log('[WebRTC] 🔄 srflx candidate (STUN OK, but may fail across NATs without relay)');
+        }
         socket.emit('webrtc:ice-candidate', {
           candidate: event.candidate.toJSON(),
           toRole: remoteRole,
@@ -88,8 +117,11 @@ export function useWebRTC({
     // ICE connection state — catches failures earlier than connectionstate
     pc.oniceconnectionstatechange = () => {
       console.log('[WebRTC] ICE connection state:', pc.iceConnectionState);
-      if (pc.iceConnectionState === 'failed') {
-        console.error('[WebRTC] ICE negotiation failed — check STUN/TURN');
+      if (pc.iceConnectionState === 'connected') {
+        console.log('[WebRTC] ✅ ICE negotiation succeeded — media path established');
+      } else if (pc.iceConnectionState === 'failed') {
+        console.error('[WebRTC] ❌ ICE negotiation failed — no common candidate pair');
+        console.error('[WebRTC]    Likely cause: both peers behind restrictive NATs with no TURN relay');
         setWebRTCState('failed');
         socket?.emit('webrtc:ice-failure');
       }
