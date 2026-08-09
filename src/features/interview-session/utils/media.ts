@@ -1,8 +1,10 @@
 /**
  * Start the user's camera and return the stream.
+ * Optionally also captures the microphone (used by the phone stream so the
+ * recruiter receives both camera + mic over WebRTC).
  * Handles errors gracefully and returns null on failure.
  */
-export async function startCameraStream(): Promise<MediaStream | null> {
+export async function startCameraStream(audio = false): Promise<MediaStream | null> {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
@@ -10,6 +12,7 @@ export async function startCameraStream(): Promise<MediaStream | null> {
         height: { ideal: 480 },
         facingMode: 'user',
       },
+      ...(audio ? { audio: true } : {}),
     });
     return stream;
   } catch (err) {

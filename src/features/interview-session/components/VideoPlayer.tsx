@@ -13,9 +13,17 @@ interface VideoPlayerProps {
 export function VideoPlayer({ stream, className = '', label }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  // React whenever the stream changes, including clearing when it becomes null
   useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
+    const video = videoRef.current;
+    if (!video) return;
+
+    video.srcObject = stream ?? null;
+
+    if (stream) {
+      void video.play().catch((error) => {
+        console.warn('[VideoPlayer] autoplay failed', error);
+      });
     }
   }, [stream]);
 

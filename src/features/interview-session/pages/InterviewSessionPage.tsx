@@ -38,6 +38,8 @@ export function InterviewSessionPage() {
   // Candidate interview mode state
   const [interviewMode, setInterviewMode] = useState<'idle' | 'joining' | 'waiting' | 'candidate-ready' | 'webrtc-connected'>('idle');
   const [localCameraStream, setLocalCameraStream] = useState<MediaStream | null>(null);
+  // Phone monitor WebRTC delivers the phone camera here (separate from the candidate flow)
+  const [phoneRemoteStream, setPhoneRemoteStream] = useState<MediaStream | null>(null);
 
   const {
     phoneStatus,
@@ -141,6 +143,21 @@ export function InterviewSessionPage() {
       setRemoteStream(stream);
       setWebRTCState('connected');
       setInterviewMode('webrtc-connected');
+    },
+  });
+
+  // ─── Phone Monitor WebRTC (one-way: PHONE → RECRUITER) ──────
+  // Dedicated answerer for phone monitoring. The candidate flow above answers
+  // offers from `candidate`; this hook answers offers from `phone` and routes
+  // the phone camera into its own state/VideoPlayer.
+  useWebRTC({
+    socket,
+    localStream: null, // recruiter does NOT send media to the phone (one-way)
+    role: 'recruiter',
+    remoteRole: 'phone',
+    onRemoteStream: (stream) => {
+      console.log('[Recruiter][Phone] REMOTE PHONE STREAM RECEIVED — showing in Phone Camera Feed');
+      setPhoneRemoteStream(stream);
     },
   });
 
@@ -353,18 +370,21 @@ export function InterviewSessionPage() {
         </div>
       )}
 
-      {/* Phone camera feed (existing) */}
-      {!remoteStream && interviewMode === 'idle' && (
-        <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-            Phone Camera Feed
-          </h2>
-          <VideoPlayer
-            stream={null}
-            label="Phone Camera"
-          />
-        </div>
-      )}
+      {/* Phone camera feed — renders the phone's WebRTC remote stream */}
+      <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+        <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+          Phone Camera Feed
+        </h2>
+        <VideoPlayer
+          stream={phoneRemoteStream}
+          label="Phone Camera"
+        />
+        {phoneRemoteStream && (
+          <p className="mt-2 text-center text-xs text-green-700 dark:text-green-400">
+            ● Phone camera live
+          </p>
+        )}
+      </div>
     </>
   );
 

@@ -26,7 +26,7 @@ export function PhoneSessionPage() {
   const location = useLocation();
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [micStream, _setMicStream] = useState<MediaStream | null>(null);
+  const [_micStream, _setMicStream] = useState<MediaStream | null>(null);
   const cameraTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
@@ -78,7 +78,8 @@ export function PhoneSessionPage() {
     }, 15_000);
 
     async function initMedia() {
-      stream = await startCameraStream();
+      // Capture camera + mic so the recruiter receives BOTH over WebRTC
+      stream = await startCameraStream(true);
       if (cancelled) return;
 
       if (cameraTimeoutRef.current) {
@@ -119,7 +120,7 @@ export function PhoneSessionPage() {
       // Send device info once connected
       sendDeviceInfo({
         cameraStatus: cameraStream ? 'ready' : cameraError ? 'error' : 'starting',
-        micStatus: micStream ? 'ready' : 'unavailable',
+        micStatus: cameraStream?.getAudioTracks().length ? 'ready' : 'unavailable',
         battery: undefined,
         network: {
           type: navigator.onLine ? 'online' : 'offline',
